@@ -1,0 +1,4 @@
+# python==3.11
+# flake
+numpy
+pre-commit
