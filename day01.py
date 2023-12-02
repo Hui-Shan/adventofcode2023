@@ -124,5 +124,3 @@ if __name__ == "__main__":
 
     res2_real = get_sum_calibration_values(real_input, part=2)
     print(f"Real result part 2: {res2_real}")
-
-    # TODO: clean up code
