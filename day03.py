@@ -94,7 +94,7 @@ def solve_part2(input: list) -> int:
     total_gear_ratio = 0
     for y, line in enumerate(input):
         for x, el in enumerate(line):
-            if el != "." and not el.isdigit():
+            if el == "*":
                 adj_numbers = []
                 for number in numbers:
                     if (y, x) in number.adjacent_coords:
