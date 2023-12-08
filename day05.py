@@ -1,6 +1,22 @@
+"""
+Copyright 2023 ʕ·ᴥ·ʔ
+"""
+
 import re
 
 from read import get_input
+
+
+class Range:
+    def __init__(self, start: int, end: int, translated: bool = False):
+        self.start = start
+        self.end = end
+
+    def contains(self, value: int) -> bool:
+        return self.start <= value <= self.end
+
+    def __str__(self):
+        return f"{self.start} {self.end}"
 
 
 class Mapping:
@@ -12,10 +28,39 @@ class Mapping:
         self.source = int(source)
         self.mrange = int(mrange)
 
-    def maps_to_value(self, value_in) -> int:
-        if self.source <= value_in < (self.source + self.mrange):
+    def contains_value(self, value_in: int):
+        return self.source <= value_in < (self.source + self.mrange)
+
+    def contains_range(self, start: int, end: int):
+        return self.contains_value(value_in=start) & self.contains_value(value_in=end)
+
+    def translate_value(self, value_in) -> int:
+        if self.contains_value(value_in=value_in):
             return self.dest + (value_in - self.source)
-        return None
+        else:
+            return value_in
+
+    def translate_range(self, range_in: Range) -> list:
+        if range_in.end < self.source or range_in.start > (self.source + self.mrange):
+            range_out = None
+        else:
+            overlap_start = max(range_in.start, self.source)
+            overlap_end = min(range_in.end, self.source + self.mrange - 1)
+
+            range_out = [
+                Range(
+                    self.translate_value(overlap_start),
+                    self.translate_value(overlap_end),
+                    translated=True,
+                )
+            ]
+
+            if range_in.start < self.source:
+                range_out.append(Range(range_in.start, overlap_start - 1))
+            if range_in.end > self.source + self.mrange - 1:
+                range_out.append(Range(overlap_end + 1, range_in.end))
+
+        return range_out
 
     def __str__(self):
         return f"{self.dest} {self.source} {self.mrange}"
@@ -23,7 +68,7 @@ class Mapping:
 
 class Map:
     def __init__(self, map_str: list):
-        self.name = map_str[0][:-1]
+        self.source, self.dest = map_str[0][:-1].split("-to-")
         self.mappings = []
         for line in map_str[1:]:
             new_mapping = Mapping(line)
@@ -32,14 +77,14 @@ class Map:
     def map_value(self, value):
         res = value
         for mapping in self.mappings:
-            cur_map = mapping.maps_to_value(value_in=value)
-            if cur_map is not None:
-                res = cur_map
+            if mapping.contains_value(value_in=res):
+                res = mapping.translate_value(value_in=res)
+                break
 
         return res
 
     def __str__(self):
-        return f"{self.name}\n {[str(el) for el in self.mappings]}"
+        return f"{self.source}-{self.dest}\n {[str(el) for el in self.mappings]}"
 
 
 class Puzzle:
@@ -75,29 +120,38 @@ class Puzzle:
         range_list = []
 
         for ii in range(n_ranges):
-            start = self.seeds[ii]
-            end = self.seeds[2 * ii - 1]
+            start = self.seeds[2 * ii]
+            end = self.seeds[2 * ii + 1]
 
-            range_list.append((start, end - 1))
+            range_list.append(Range(start, start + end - 1))
         return range_list
 
     def solve_part2(self):
-        print("need to fix part 2")
+        ranges = self.seed_ranges
+        ii = 0
+        while ii < len(self.maps):
+            map = self.maps[ii]
+            new_ranges = []
+            for item in ranges:
+                knots = {item.start, item.end}
+                for mapping in map.mappings:
+                    knots.add(mapping.source)
+                    knots.add(mapping.source + mapping.mrange - 1)
 
-    #     edges = [el for el in self.seed_ranges]
-    #     for ii in range(int(len(self.seeds) / 2)):
-    #         edges[2 * ii + 1] += edges[2 * ii]
-    #
-    #     lowest_value = None
-    #     for seed in edges:
-    #         value = seed
-    #         for map in self.maps:
-    #             value = map.map_value(value)
-    #
-    #         if lowest_value is None or value < lowest_value:
-    #             lowest_value = value
-    #
-    #     return lowest_value
+                knots = list(sorted(knots))
+                while not item.contains(knots[0]):
+                    knots = knots[1:]
+                while not item.contains(knots[-1]):
+                    knots = knots[:-1]
+
+                for i in range(len(knots) - 1):
+                    value = map.map_value(value=knots[i])
+                    length = knots[i + 1] - knots[i] + 1
+                    new_ranges.append(Range(start=value, end=value + length - 1))
+            ranges = new_ranges
+            ii += 1
+
+        return min(range.start for range in ranges)
 
     def __str__(self):
         return f"{self.seeds}, {[str(map) for map in self.maps]}"
@@ -150,5 +204,6 @@ if __name__ == "__main__":
     print(f"Real res1: {res1_real}")
 
     res2_test = test_puzzle.solve_part2()
-    # print(test_puzzle)
     print(f"Test res2: {res2_test}")
+    res2_real = real_puzzle.solve_part2()
+    print(f"Real res2: {res2_real}")
